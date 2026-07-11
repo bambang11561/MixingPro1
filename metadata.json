@@ -1,0 +1,8 @@
+{
+  "name": "HSE Safety Dashboard & Real-Time Monitoring",
+  "description": "Health, Safety, and Environment (HSE) monitoring dashboard and smart reporting system with real-time site parameters, safety incident log, and Gemini AI-assisted hazard assessment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

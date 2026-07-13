@@ -90,7 +90,7 @@ export default function DashboardOverview({ stats, loading, onRefresh }: Dashboa
           <div className="absolute bottom-0 left-0 h-1 w-full bg-amber-500"></div>
         </div>
 
-        {/* Total Safety Reports Filed */}
+        {/* Total Ketidaksesuaian IK */}
         <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
           <div className="flex items-start justify-between">
             <div className="space-y-1">

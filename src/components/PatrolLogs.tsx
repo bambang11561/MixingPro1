@@ -112,6 +112,21 @@ export default function PatrolLogs() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [patrols, areaFilter]);
 
+  const patrolRecapByDate = useMemo(() => {
+    const recap: Record<string, Set<string>> = {};
+    patrols.forEach(p => {
+      // Use original patrols array, not filtered, so we see all daily patrols even if 0 NG
+      if (areaFilter !== 'ALL' && p.area !== areaFilter) return;
+      const date = p.date ? p.date.split('T')[0] : 'Unknown Date';
+      if (!recap[date]) recap[date] = new Set();
+      if (p.technician) recap[date].add(p.technician);
+    });
+    return Object.entries(recap)
+      .sort((a, b) => new Date(b[0]).getTime() - new Date(a[0]).getTime())
+      .slice(0, 7) // Keep only recent 7 days
+      .map(([date, techs]) => ({ date, technicians: Array.from(techs) }));
+  }, [patrols, areaFilter]);
+
   const getNgItems = (itemsStatus?: Record<string, string>) => {
     if (!itemsStatus) return [];
     
@@ -201,6 +216,34 @@ export default function PatrolLogs() {
             <option value="MIXING F">MIXING F</option>
           </select>
         </div>
+      </div>
+
+      {/* REKAP PATROL HARIAN */}
+      <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shrink-0">
+         <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase font-sans"><User className="h-4 w-4 text-emerald-500" /> Rekap Pelaksanaan Patrol Harian</h4>
+         
+         {patrolRecapByDate.length > 0 ? (
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+             {patrolRecapByDate.map((recap, idx) => (
+               <div key={idx} className="bg-slate-900 border border-slate-800 p-3 rounded-lg flex flex-col gap-2">
+                 <div className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded self-start flex items-center gap-1">
+                   <Calendar className="h-3 w-3" />
+                   {new Date(recap.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+                 </div>
+                 <div className="flex flex-wrap gap-1.5 mt-1">
+                   {recap.technicians.map((tech, tIdx) => (
+                     <span key={tIdx} className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-medium flex items-center gap-1">
+                       <User className="h-3 w-3 text-slate-500" />
+                       {tech}
+                     </span>
+                   ))}
+                 </div>
+               </div>
+             ))}
+           </div>
+         ) : (
+           <div className="text-xs text-slate-500 italic py-2">Belum ada data patrol harian.</div>
+         )}
       </div>
 
       {loading ? (

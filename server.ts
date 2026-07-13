@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 
 // Load environment variables
 dotenv.config();
@@ -22,7 +24,6 @@ app.use(express.json());
 // Initialize Gemini API client
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 let ai: GoogleGenAI | null = null;
-
 if (GEMINI_API_KEY && GEMINI_API_KEY !== 'MY_GEMINI_API_KEY') {
   ai = new GoogleGenAI({
     apiKey: GEMINI_API_KEY,
@@ -36,94 +37,57 @@ if (GEMINI_API_KEY && GEMINI_API_KEY !== 'MY_GEMINI_API_KEY') {
   console.warn('WARNING: GEMINI_API_KEY is not configured or has placeholder value. AI features will fallback to simulation.');
 }
 
-const REPORTS_FILE_PATH = path.join(process.cwd(), 'data', 'reports.json');
-const PATROLS_FILE_PATH = path.join(process.cwd(), 'data', 'patrols.json');
-
-// Helper to read safety reports from file
-function readReports(): any[] {
-  try {
-    if (fs.existsSync(REPORTS_FILE_PATH)) {
-      const data = fs.readFileSync(REPORTS_FILE_PATH, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading reports file:', error);
-  }
-  return [];
+// Initialize Firebase Client
+const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
+let db: any = null;
+if (fs.existsSync(firebaseConfigPath)) {
+  const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf-8'));
+  const firebaseApp = initializeApp(firebaseConfig);
+  db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
 }
 
-// Helper to write safety reports to file
-function writeReports(reports: any[]) {
+// Helpers for Firestore
+async function readReports(): Promise<any[]> {
+  if (!db) return [];
   try {
-    const dataDir = path.dirname(REPORTS_FILE_PATH);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    fs.writeFileSync(REPORTS_FILE_PATH, JSON.stringify(reports, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error writing reports file:', error);
+    const snap = await getDocs(collection(db, 'reports'));
+    return snap.docs.map((d: any) => ({ ...d.data(), id: d.id }));
+  } catch (e) {
+    console.error('Error reading reports:', e);
+    return [];
   }
 }
 
-// Helper to read patrols
-function readPatrols(): any[] {
+async function readPatrols(): Promise<any[]> {
+  if (!db) return [];
   try {
-    if (fs.existsSync(PATROLS_FILE_PATH)) {
-      const data = fs.readFileSync(PATROLS_FILE_PATH, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading patrols file:', error);
-  }
-  return [];
-}
-
-// Helper to write patrols
-function writePatrols(patrols: any[]) {
-  try {
-    const dataDir = path.dirname(PATROLS_FILE_PATH);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    fs.writeFileSync(PATROLS_FILE_PATH, JSON.stringify(patrols, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error writing patrols file:', error);
+    const snap = await getDocs(collection(db, 'patrols'));
+    return snap.docs.map((d: any) => ({ ...d.data(), id: d.id }));
+  } catch (e) {
+    console.error('Error reading patrols:', e);
+    return [];
   }
 }
 
-const SCRAP_FILE_PATH = path.join(process.cwd(), 'data', 'scrap.json');
-
-// Helper to read scrap data
-function readScrap(): any {
+async function readScrap(): Promise<any> {
+  if (!db) return {};
   try {
-    if (fs.existsSync(SCRAP_FILE_PATH)) {
-      const data = fs.readFileSync(SCRAP_FILE_PATH, 'utf-8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error reading scrap file:', error);
-  }
-  // Initialize with an empty year/month structure
-  return {};
-}
-
-// Helper to write scrap data
-function writeScrap(scrapData: any) {
-  try {
-    const dataDir = path.dirname(SCRAP_FILE_PATH);
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    fs.writeFileSync(SCRAP_FILE_PATH, JSON.stringify(scrapData, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error writing scrap file:', error);
+    const snap = await getDocs(collection(db, 'scrap'));
+    const scrapData: any = {};
+    snap.docs.forEach((d: any) => {
+      scrapData[d.id] = d.data().categories || {};
+    });
+    return scrapData;
+  } catch (e) {
+    console.error('Error reading scrap:', e);
+    return {};
   }
 }
 
 // GET /api/scrap?month=YYYY-MM
-app.get('/api/scrap', (req, res) => {
+app.get('/api/scrap', async (req, res) => {
   const { month } = req.query;
-  const scrapData = readScrap();
+  const scrapData = await readScrap();
   if (month && typeof month === 'string') {
     res.json(scrapData[month] || {});
   } else {
@@ -132,29 +96,27 @@ app.get('/api/scrap', (req, res) => {
 });
 
 // POST /api/scrap
-app.post('/api/scrap', (req, res) => {
-  const { month, data } = req.body; // data is an object mapping category -> array of 31 values
+app.post('/api/scrap', async (req, res) => {
+  const { month, data } = req.body;
   if (!month || !data) {
     return res.status(400).json({ error: 'Bulan dan data diperlukan.' });
   }
-  const scrapData = readScrap();
-  scrapData[month] = data;
-  writeScrap(scrapData);
+  if (db) {
+    await setDoc(doc(db, 'scrap', month), { categories: data });
+  }
   res.status(200).json({ success: true });
 });
 
 // 1. GET /api/stats
-// Calculates live stats dynamically with a ticking safe man-hours value
+// Calculates live stats dynamically
 const PROJECT_START_TIME = new Date('2026-01-01T00:00:00Z').getTime();
-const ACCIDENTS_COUNT = 0; // High-performance target (Zero Accident)
+const ACCIDENTS_COUNT = 0;
 
-app.get('/api/stats', (req, res) => {
-  const reports = readReports();
+app.get('/api/stats', async (req, res) => {
+  const reports = await readReports();
   
-  // Calculate Safe Man Hours: 150 workers working 8 hours/day since project start
   const now = Date.now();
   const daysDiff = Math.max(1, Math.floor((now - PROJECT_START_TIME) / (1000 * 60 * 60 * 24)));
-  // Roughly 1,200 man-hours per day + some ticking hours
   const tickingMinutes = Math.floor((now % (1000 * 60 * 60 * 24)) / 1000 / 60);
   const tickingHours = Math.floor(daysDiff * 1200 + (tickingMinutes * 0.8));
   const safeManHours = 2345000 + tickingHours;
@@ -164,9 +126,9 @@ app.get('/api/stats', (req, res) => {
   const inProgressReports = reports.filter(r => r.status === 'In Progress').length;
   const resolvedReports = reports.filter(r => r.status === 'Resolved' || r.status === 'Closed').length;
 
-  const scrapData = readScrap();
+  const scrapData = await readScrap();
   let totalScrap = 0;
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  const currentMonth = new Date().toISOString().slice(0, 7);
   if (scrapData[currentMonth]) {
     const data = scrapData[currentMonth];
     for (const category in data) {
@@ -176,14 +138,14 @@ app.get('/api/stats', (req, res) => {
     }
   }
 
-  const patrols = readPatrols();
+  const patrols = await readPatrols();
   const totalPatrolNG = patrols.reduce((sum: number, p: any) => sum + (Number(p.ngCount) || 0), 0);
 
   res.json({
     safeManHours,
     daysWithoutAccident: daysDiff,
     totalAccidents: ACCIDENTS_COUNT,
-    incidentRate: 0.0, // Zero Accident target
+    incidentRate: 0.0,
     totalReports,
     openReports,
     inProgressReports,
@@ -194,22 +156,20 @@ app.get('/api/stats', (req, res) => {
 });
 
 // 2. GET /api/reports
-app.get('/api/reports', (req, res) => {
-  const reports = readReports();
-  // Sort reports by newest timestamp
+app.get('/api/reports', async (req, res) => {
+  const reports = await readReports();
   reports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   res.json(reports);
 });
 
 // 3. POST /api/reports
-app.post('/api/reports', (req, res) => {
+app.post('/api/reports', async (req, res) => {
   const { reporterName, location, type, category, description, severity, recommendedAction, status, aiAnalysis } = req.body;
   
   if (!reporterName || !location || !type || !category || !description || !severity) {
     return res.status(400).json({ error: 'Data pelaporan tidak lengkap. Harap isi seluruh field wajib.' });
   }
 
-  const reports = readReports();
   const newReport = {
     id: `rep-${Math.floor(1000 + Math.random() * 9000)}`,
     reporterName,
@@ -224,14 +184,16 @@ app.post('/api/reports', (req, res) => {
     aiAnalysis
   };
 
-  reports.push(newReport);
-  writeReports(reports);
+  if (db) {
+    
+    await setDoc(doc(db, 'reports', newReport.id), newReport);
+  }
 
   res.status(201).json(newReport);
 });
 
 // 4. PUT /api/reports/:id/status
-app.put('/api/reports/:id/status', (req, res) => {
+app.put('/api/reports/:id/status', async (req, res) => {
   const { id } = req.params;
   const { status, recommendedAction } = req.body;
 
@@ -239,36 +201,38 @@ app.put('/api/reports/:id/status', (req, res) => {
     return res.status(400).json({ error: 'Status diperlukan.' });
   }
 
-  const reports = readReports();
-  const reportIndex = reports.findIndex(r => r.id === id);
-
-  if (reportIndex === -1) {
-    return res.status(404).json({ error: 'Laporan tidak ditemukan.' });
-  }
-
-  reports[reportIndex].status = status;
-  if (recommendedAction) {
-    reports[reportIndex].recommendedAction = recommendedAction;
+  if (db) {
+    
+    const docRef = doc(db, 'reports', id);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      return res.status(404).json({ error: 'Laporan tidak ditemukan.' });
+    }
+    const updateData: any = { status };
+    if (recommendedAction) {
+      updateData.recommendedAction = recommendedAction;
+    }
+    await updateDoc(docRef, updateData);
+    const updatedSnap = await getDoc(docRef);
+    return res.json({ ...updatedSnap.data(), id: updatedSnap.id });
   }
   
-  writeReports(reports);
-  res.json(reports[reportIndex]);
+  res.status(500).json({ error: 'Database not initialized' });
 });
 
 // GET /api/patrols
-app.get('/api/patrols', (req, res) => {
-  const patrols = readPatrols();
+app.get('/api/patrols', async (req, res) => {
+  const patrols = await readPatrols();
   res.json(patrols);
 });
 
 // POST /api/patrols
-app.post('/api/patrols', (req, res) => {
+app.post('/api/patrols', async (req, res) => {
   const { area, technician, date, ngCount, itemsStatus, itemsRemarks } = req.body;
   if (!area || !technician) {
     return res.status(400).json({ error: 'Area dan Teknisi diperlukan.' });
   }
 
-  const patrols = readPatrols();
   const newPatrol = {
     id: `ptl-${Date.now()}`,
     area,
@@ -279,13 +243,17 @@ app.post('/api/patrols', (req, res) => {
     itemsRemarks,
     itemsWorkingStatus: {}
   };
-  patrols.push(newPatrol);
-  writePatrols(patrols);
+  
+  if (db) {
+    
+    await setDoc(doc(db, 'patrols', newPatrol.id), newPatrol);
+  }
+  
   res.status(201).json(newPatrol);
 });
 
 // PATCH /api/patrols/:patrolId/items/:itemId/status
-app.patch('/api/patrols/:patrolId/items/:itemId/status', (req, res) => {
+app.patch('/api/patrols/:patrolId/items/:itemId/status', async (req, res) => {
   const { patrolId, itemId } = req.params;
   const { workingStatus } = req.body;
   
@@ -293,19 +261,24 @@ app.patch('/api/patrols/:patrolId/items/:itemId/status', (req, res) => {
     return res.status(400).json({ error: 'Status pengerjaan diperlukan.' });
   }
 
-  const patrols = readPatrols();
-  const index = patrols.findIndex((p: any) => p.id === patrolId);
-  
-  if (index !== -1) {
-    if (!patrols[index].itemsWorkingStatus) {
-      patrols[index].itemsWorkingStatus = {};
+  if (db) {
+    
+    const docRef = doc(db, 'patrols', patrolId);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      return res.status(404).json({ error: 'Laporan patroli tidak ditemukan.' });
     }
-    patrols[index].itemsWorkingStatus[itemId] = workingStatus;
-    writePatrols(patrols);
-    res.json(patrols[index]);
-  } else {
-    res.status(404).json({ error: 'Laporan patroli tidak ditemukan.' });
+    const data = docSnap.data();
+    const itemsWorkingStatus = data.itemsWorkingStatus || {};
+    itemsWorkingStatus[itemId] = workingStatus;
+    
+    await updateDoc(docRef, { itemsWorkingStatus });
+    
+    const updatedSnap = await getDoc(docRef);
+    return res.json({ ...updatedSnap.data(), id: updatedSnap.id });
   }
+  
+  res.status(500).json({ error: 'Database not initialized' });
 });
 
 // 5. POST /api/analyze-hazard

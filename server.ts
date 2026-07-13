@@ -91,6 +91,58 @@ function writePatrols(patrols: any[]) {
   }
 }
 
+const SCRAP_FILE_PATH = path.join(process.cwd(), 'data', 'scrap.json');
+
+// Helper to read scrap data
+function readScrap(): any {
+  try {
+    if (fs.existsSync(SCRAP_FILE_PATH)) {
+      const data = fs.readFileSync(SCRAP_FILE_PATH, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error reading scrap file:', error);
+  }
+  // Initialize with an empty year/month structure
+  return {};
+}
+
+// Helper to write scrap data
+function writeScrap(scrapData: any) {
+  try {
+    const dataDir = path.dirname(SCRAP_FILE_PATH);
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(SCRAP_FILE_PATH, JSON.stringify(scrapData, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Error writing scrap file:', error);
+  }
+}
+
+// GET /api/scrap?month=YYYY-MM
+app.get('/api/scrap', (req, res) => {
+  const { month } = req.query;
+  const scrapData = readScrap();
+  if (month && typeof month === 'string') {
+    res.json(scrapData[month] || {});
+  } else {
+    res.json(scrapData);
+  }
+});
+
+// POST /api/scrap
+app.post('/api/scrap', (req, res) => {
+  const { month, data } = req.body; // data is an object mapping category -> array of 31 values
+  if (!month || !data) {
+    return res.status(400).json({ error: 'Bulan dan data diperlukan.' });
+  }
+  const scrapData = readScrap();
+  scrapData[month] = data;
+  writeScrap(scrapData);
+  res.status(200).json({ success: true });
+});
+
 // 1. GET /api/stats
 // Calculates live stats dynamically with a ticking safe man-hours value
 const PROJECT_START_TIME = new Date('2026-01-01T00:00:00Z').getTime();
@@ -112,6 +164,21 @@ app.get('/api/stats', (req, res) => {
   const inProgressReports = reports.filter(r => r.status === 'In Progress').length;
   const resolvedReports = reports.filter(r => r.status === 'Resolved' || r.status === 'Closed').length;
 
+  const scrapData = readScrap();
+  let totalScrap = 0;
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+  if (scrapData[currentMonth]) {
+    const data = scrapData[currentMonth];
+    for (const category in data) {
+      if (Array.isArray(data[category])) {
+        totalScrap += data[category].reduce((sum: number, val: any) => sum + (Number(val) || 0), 0);
+      }
+    }
+  }
+
+  const patrols = readPatrols();
+  const totalPatrolNG = patrols.reduce((sum: number, p: any) => sum + (Number(p.ngCount) || 0), 0);
+
   res.json({
     safeManHours,
     daysWithoutAccident: daysDiff,
@@ -120,7 +187,9 @@ app.get('/api/stats', (req, res) => {
     totalReports,
     openReports,
     inProgressReports,
-    resolvedReports
+    resolvedReports,
+    totalScrap,
+    totalPatrolNG
   });
 });
 

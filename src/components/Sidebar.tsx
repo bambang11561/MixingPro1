@@ -7,6 +7,7 @@ import {
   Radio, 
   BrainCircuit, 
   BookOpen,
+  Map,
   ClipboardCheck,
   Menu,
   X,
@@ -18,9 +19,11 @@ export type ActivePageType =
   | 'dashboard' 
   | 'logs' 
   | 'form' 
-  | 'regulations'
   | 'patrol4ks'
-  | 'patrol_logs';
+  | 'patrol_logs'
+  | 'scrap_monitoring'
+  | 'culture'
+  | 'mapping_area';
 
 interface SidebarProps {
   activePage: ActivePageType;
@@ -59,6 +62,14 @@ export default function Sidebar({ activePage, onPageChange, isOpen, onToggle, ro
       adminOnly: true
     },
     {
+      id: 'mapping_area' as ActivePageType,
+      label: 'Mapping Area Genba',
+      sub: 'PIC Penanggung Jawab Area',
+      icon: Map,
+      color: 'text-emerald-500',
+      adminOnly: false
+    },
+    {
       id: 'form' as ActivePageType,
       label: 'Form Kesesuaian IK Mixing',
       sub: 'Temuan Pelaksanaan IK',
@@ -75,12 +86,19 @@ export default function Sidebar({ activePage, onPageChange, isOpen, onToggle, ro
       adminOnly: true
     },
     {
-      id: 'regulations' as ActivePageType,
-      label: 'Regulasi & UU K3',
-      sub: 'Kemenaker & OSHA Library',
-      icon: BookOpen,
-      color: 'text-cyan-400',
+      id: 'scrap_monitoring' as ActivePageType,
+      label: 'Monitoring Scrap',
+      sub: 'Data Scrap Compound Mixing',
+      icon: FileSpreadsheet,
+      color: 'text-indigo-400',
       adminOnly: true
+    },
+    {
+      id: 'culture' as ActivePageType,
+      label: 'Culture pRide',
+      sub: 'E-book Budaya Organisasi',
+      icon: BookOpen,
+      color: 'text-red-500'
     }
   ];
 

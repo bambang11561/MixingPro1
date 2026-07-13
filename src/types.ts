@@ -47,6 +47,8 @@ export interface DashboardStats {
   openReports: number;
   inProgressReports: number;
   resolvedReports: number;
+  totalScrap?: number;
+  totalPatrolNG?: number;
 }
 
 export interface ChatMessage {

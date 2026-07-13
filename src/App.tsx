@@ -4,9 +4,11 @@ import Sidebar, { ActivePageType } from './components/Sidebar';
 import DashboardOverview from './components/DashboardOverview';
 import ReportForm from './components/ReportForm';
 import ReportList from './components/ReportList';
-import Regulations from './components/Regulations';
 import Patrol4KS from './components/Patrol4KS';
 import PatrolLogs from './components/PatrolLogs';
+import ScrapMonitoring from './components/ScrapMonitoring';
+import CulturePride from './components/CulturePride';
+import MappingArea from './components/MappingArea';
 import Login from './components/Login';
 import { DashboardStats, SafetyReport, ReportStatus } from './types';
 import { Eye, ShieldAlert, FileSpreadsheet, MessageSquareCode } from 'lucide-react';
@@ -233,12 +235,6 @@ export default function App() {
             </div>
           )}
 
-          {activePage === 'regulations' && userRole === 'admin' && (
-            <div className="animate-fade-in">
-              <Regulations />
-            </div>
-          )}
-
           {activePage === 'patrol4ks' && (
             <div className="animate-fade-in max-w-4xl mx-auto">
               <Patrol4KS />
@@ -251,17 +247,35 @@ export default function App() {
             </div>
           )}
 
+          {activePage === 'scrap_monitoring' && userRole === 'admin' && (
+            <div className="animate-fade-in">
+              <ScrapMonitoring />
+            </div>
+          )}
+
+          {activePage === 'culture' && (
+            <div className="animate-fade-in">
+              <CulturePride />
+            </div>
+          )}
+
+          {activePage === 'mapping_area' && (
+            <div className="animate-fade-in max-w-6xl mx-auto">
+              <MappingArea />
+            </div>
+          )}
+
         </main>
 
         {/* Safety Command Footer */}
         <footer className="border-t border-slate-900 bg-[#070b13] py-4 px-6 text-center text-xs text-slate-500 font-mono shrink-0" id="hse-footer">
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center sm:justify-between gap-3">
             <div>
-              © 2026 Mixing Departement Pro.1. Seluruh hak cipta dilindungi.
+              © 2026 Mixing Departement Pro.1 | Do With pRide.
             </div>
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              SIAGA ZERO DEFECT ZERO ACCIDENT | QCC TRANSFORMIX
+              ZERO DEFECT ZERO ACCIDENT | QCC TRANSFORMIX
             </div>
           </div>
         </footer>

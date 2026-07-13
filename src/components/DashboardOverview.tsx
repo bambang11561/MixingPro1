@@ -34,11 +34,11 @@ export default function DashboardOverview({ stats, loading, onRefresh }: Dashboa
     "3. Menggunakan Alat Pelindung Diri sesuai standar yang berlaku.",
     "4. Menggunakan Peralatan sesuai dengan fungsi dan peruntukkannya.",
     "5. Mengisi autonomous maintenance mesin/peralatan dan memastikan setiap safety device berfungsi dengan baik.",
-    "6..",
-    "7..",
-    "8..",
-    "9..",
-    "10.."
+    "6. Menghentikan pekerjaan tidak aman yang berpotensi kecelakaan dan bekerja sesuai dengan tanggung jawab dan wewenangnya.",
+    "7. Wajib dilengkapi Surat Izin Operator (SIO) & Surat Izin Layaj Operasi (SILO) untuk mengoperasikan alat berdampak K3.",
+    "8. Mengajukan izin saat melakukan pekerjaan berpotensi bahaya tinggi.",
+    "9. Aman berlalu lintas saat berada di area pabrik dan jalan raya.",
+    "10. Menjaga lingkungan kerja tetap tertib,rapi & bersih."
   ];
 
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -56,7 +56,7 @@ export default function DashboardOverview({ stats, loading, onRefresh }: Dashboa
       <div className="flex items-center justify-between">
         <h2 className="font-sans text-lg font-bold text-white flex items-center gap-2">
           <ShieldCheck className="h-5 w-5 text-orange-500" />
-          RINGKASAN METRIK KONDISI AREA PRODUKSI
+          RINGKASAN KONDISI AREA PRODUKSI
         </h2>
         <button
           onClick={onRefresh}
@@ -69,84 +69,65 @@ export default function DashboardOverview({ stats, loading, onRefresh }: Dashboa
       </div>
 
       {/* KPI Core Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        
-        {/* Safe Man Hours */}
-        <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Jam Kerja Aman (SMH)</span>
-              <div className="font-mono text-2xl font-black text-emerald-400 tracking-tight">
-                {formatNumber(tickingHours)}
-              </div>
-            </div>
-            <div className="rounded-lg bg-emerald-500/10 p-2.5 text-emerald-400 ring-1 ring-emerald-500/20">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-emerald-500 flex items-center gap-1 font-mono">
-            ● NO LTI (Lost Time Injury)
-          </p>
-          <div className="absolute bottom-0 left-0 h-1 w-full bg-emerald-500"></div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-3">
 
-        {/* Days Without Accident */}
+        {/* Total Patrol 4K+S NG */}
         <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Hari Tanpa Kecelakaan</span>
-              <div className="font-mono text-2xl font-black text-amber-500 tracking-tight">
-                {formatNumber(stats.daysWithoutAccident)} Hari
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Patrol 4K+S</span>
+              <div className="font-mono text-xl xl:text-2xl font-black text-amber-500 tracking-tight">
+                {formatNumber(stats.totalPatrolNG || 0)} NG
               </div>
             </div>
-            <div className="rounded-lg bg-amber-500/10 p-2.5 text-amber-500 ring-1 ring-amber-500/20">
-              <Calendar className="h-6 w-6" />
+            <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500 ring-1 ring-amber-500/20 shrink-0">
+              <AlertCircle className="h-5 w-5" />
             </div>
           </div>
-          <p className="mt-3 text-xs text-slate-400 font-mono">
-            Mulai Sejak: 01 Jan 2026
+          <p className="mt-3 text-[10px] text-slate-400 font-mono">
+            Total Temuan NG Teknisi
           </p>
           <div className="absolute bottom-0 left-0 h-1 w-full bg-amber-500"></div>
-        </div>
-
-        {/* Total Accident (Zero Target) */}
-        <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Kecelakaan Kerja</span>
-              <div className="font-mono text-2xl font-black text-rose-500 tracking-tight">
-                {stats.totalAccidents}
-              </div>
-            </div>
-            <div className="rounded-lg bg-rose-500/10 p-2.5 text-rose-400 ring-1 ring-rose-500/20">
-              <Skull className="h-6 w-6" />
-            </div>
-          </div>
-          <p className="mt-3 text-xs text-rose-400 font-semibold flex items-center gap-1 font-mono">
-            ★ TARGET: ZERO ACCIDENT
-          </p>
-          <div className="absolute bottom-0 left-0 h-1 w-full bg-rose-500"></div>
         </div>
 
         {/* Total Safety Reports Filed */}
         <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Temuan ketidaksesuaian IK</span>
-              <div className="font-mono text-2xl font-black text-blue-400 tracking-tight">
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Ketidaksesuaian IK</span>
+              <div className="font-mono text-xl xl:text-2xl font-black text-blue-400 tracking-tight">
                 {stats.totalReports} Laporan
               </div>
             </div>
-            <div className="rounded-lg bg-blue-500/10 p-2.5 text-blue-400 ring-1 ring-blue-500/20">
-              <FileText className="h-6 w-6" />
+            <div className="rounded-lg bg-blue-500/10 p-2 text-blue-400 ring-1 ring-blue-500/20 shrink-0">
+              <FileText className="h-5 w-5" />
             </div>
           </div>
-          <div className="mt-3 flex gap-2 font-mono text-[10px]">
-            <span className="text-rose-400 font-bold">O: {stats.openReports}</span>
-            <span className="text-yellow-400 font-bold">WIP: {stats.inProgressReports}</span>
-            <span className="text-emerald-400 font-bold">C: {stats.resolvedReports}</span>
+          <div className="mt-3 flex gap-2 font-mono text-[9px]">
+            <span className="text-rose-400 font-bold">O:{stats.openReports}</span>
+            <span className="text-yellow-400 font-bold">W:{stats.inProgressReports}</span>
+            <span className="text-emerald-400 font-bold">C:{stats.resolvedReports}</span>
           </div>
           <div className="absolute bottom-0 left-0 h-1 w-full bg-blue-500"></div>
+        </div>
+
+        {/* Total Scrap Mixing */}
+        <div className="relative overflow-hidden rounded-xl bg-slate-900 border border-slate-800 p-5 shadow-lg">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Scrap Mixing</span>
+              <div className="font-mono text-xl xl:text-2xl font-black text-indigo-400 tracking-tight">
+                {formatNumber(stats.totalScrap || 0)} Kg
+              </div>
+            </div>
+            <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-400 ring-1 ring-indigo-500/20 shrink-0">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+          </div>
+          <p className="mt-3 text-[10px] text-slate-400 font-mono">
+            Bulan Ini
+          </p>
+          <div className="absolute bottom-0 left-0 h-1 w-full bg-indigo-500"></div>
         </div>
 
       </div>

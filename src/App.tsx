@@ -154,6 +154,39 @@ export default function App() {
     }
   };
 
+  const handleEditReport = async (id: string, updatedData: Partial<SafetyReport>) => {
+    try {
+      const res = await fetch(`/api/reports/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedData),
+      });
+      if (res.ok) {
+        fetchReports();
+        fetchStats();
+      }
+    } catch (e) {
+      console.error('Error updating report:', e);
+    }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    if (!window.confirm('Yakin ingin menghapus laporan ini? Data yang dihapus tidak dapat dikembalikan.')) return;
+    try {
+      const res = await fetch(`/api/reports/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        fetchReports();
+        fetchStats();
+      }
+    } catch (e) {
+      console.error('Error deleting report:', e);
+    }
+  };
+
   // Callback when a new report is made via form
   const handleNewReportCreated = () => {
     // Refresh list and stats
@@ -211,6 +244,8 @@ export default function App() {
                     reports={reports}
                     loading={loadingReports}
                     onStatusUpdate={handleStatusUpdate}
+                    onDelete={handleDeleteReport}
+                    onEdit={handleEditReport}
                   />
                 </div>
               </div>
@@ -223,6 +258,8 @@ export default function App() {
                 reports={reports}
                 loading={loadingReports}
                 onStatusUpdate={handleStatusUpdate}
+                onDelete={handleDeleteReport}
+                onEdit={handleEditReport}
               />
             </div>
           )}

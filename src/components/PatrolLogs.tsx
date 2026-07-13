@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, MapPin, User, Calendar, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, CheckCircle, Download } from 'lucide-react';
+import { FileSpreadsheet, MapPin, User, Calendar, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, CheckCircle, Download, Trash2 } from 'lucide-react';
 import { ReportStatus } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -46,23 +46,37 @@ export default function PatrolLogs() {
 
   const [areaFilter, setAreaFilter] = useState<string>('ALL');
 
-  useEffect(() => {
-    const fetchPatrols = async () => {
-      try {
-        const response = await fetch('/api/patrols');
-        if (response.ok) {
-          const data = await response.json();
-          setPatrols(data);
-        }
-      } catch (error) {
-        console.warn('Network issue fetching patrols:', error);
-      } finally {
-        setLoading(false);
+  const fetchPatrols = async () => {
+    try {
+      const response = await fetch('/api/patrols');
+      if (response.ok) {
+        const data = await response.json();
+        setPatrols(data);
       }
-    };
-    
+    } catch (error) {
+      console.warn('Network issue fetching patrols:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchPatrols();
   }, []);
+
+  const handleDeletePatrol = async (id: string) => {
+    if (!window.confirm('Yakin ingin menghapus laporan patroli ini?')) return;
+    try {
+      const response = await fetch(`/api/patrols/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchPatrols();
+      }
+    } catch (error) {
+      console.error('Error deleting patrol:', error);
+    }
+  };
 
   const getStatusIconAndColor = (status: ReportStatus) => {
     switch (status) {
@@ -363,6 +377,15 @@ export default function PatrolLogs() {
                         Data spesifik item NG tidak direkam dalam format ini atau versi data terdahulu.
                       </div>
                     )}
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        onClick={() => handleDeletePatrol(patrol.id)}
+                        className="rounded bg-slate-800 hover:bg-rose-900/50 hover:text-rose-400 text-slate-400 border border-slate-700 hover:border-rose-500/50 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> HAPUS PATROL
+                      </button>
+                    </div>
 
                   </div>
                 )}

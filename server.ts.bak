@@ -220,27 +220,6 @@ app.put('/api/reports/:id/status', async (req, res) => {
   res.status(500).json({ error: 'Database not initialized' });
 });
 
-app.delete('/api/reports/:id', async (req, res) => {
-  const { id } = req.params;
-  if (db) {
-    const { doc, deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(doc(db, 'reports', id));
-    return res.status(200).json({ success: true });
-  }
-  res.status(500).json({ error: 'Database not initialized' });
-});
-
-app.put('/api/reports/:id', async (req, res) => {
-  const { id } = req.params;
-  const data = req.body;
-  if (db) {
-    const { doc, updateDoc } = await import('firebase/firestore');
-    await updateDoc(doc(db, 'reports', id), data);
-    return res.status(200).json({ success: true });
-  }
-  res.status(500).json({ error: 'Database not initialized' });
-});
-
 // GET /api/patrols
 app.get('/api/patrols', async (req, res) => {
   const patrols = await readPatrols();
@@ -299,16 +278,6 @@ app.patch('/api/patrols/:patrolId/items/:itemId/status', async (req, res) => {
     return res.json({ ...updatedSnap.data(), id: updatedSnap.id });
   }
   
-  res.status(500).json({ error: 'Database not initialized' });
-});
-
-app.delete('/api/patrols/:id', async (req, res) => {
-  const { id } = req.params;
-  if (db) {
-    const { doc, deleteDoc } = await import('firebase/firestore');
-    await deleteDoc(doc(db, 'patrols', id));
-    return res.status(200).json({ success: true });
-  }
   res.status(500).json({ error: 'Database not initialized' });
 });
 

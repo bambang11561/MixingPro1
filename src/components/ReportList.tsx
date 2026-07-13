@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SafetyReport, ReportStatus, ReportType } from '../types';
-import { ShieldAlert, AlertCircle, CheckCircle, Clock, MapPin, User, Tag, ChevronDown, ChevronUp, BrainCircuit, Download } from 'lucide-react';
+import { ShieldAlert, AlertCircle, CheckCircle, Clock, MapPin, User, Tag, ChevronDown, ChevronUp, BrainCircuit, Download, Trash2, Pencil, Save, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -8,10 +8,14 @@ interface ReportListProps {
   reports: SafetyReport[];
   loading: boolean;
   onStatusUpdate: (id: string, newStatus: ReportStatus) => void;
+  onDelete?: (id: string) => void;
+  onEdit?: (id: string, updatedData: Partial<SafetyReport>) => void;
 }
 
-export default function ReportList({ reports, loading, onStatusUpdate }: ReportListProps) {
+export default function ReportList({ reports, loading, onStatusUpdate, onDelete, onEdit }: ReportListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<SafetyReport>>({});
   
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -232,16 +236,32 @@ export default function ReportList({ reports, loading, onStatusUpdate }: ReportL
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <h4 className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Deskripsi Lengkap Temuan</h4>
-                        <p className="text-xs text-slate-200 leading-relaxed bg-slate-950 p-3 rounded border border-slate-800">
-                          {report.description}
-                        </p>
+                        {editingId === report.id ? (
+                          <textarea
+                            value={editFormData.description || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                            className="w-full text-xs text-slate-200 leading-relaxed bg-slate-950 p-3 rounded border border-sky-500/50 focus:outline-none focus:ring-1 focus:ring-sky-500 resize-none min-h-[80px]"
+                          />
+                        ) : (
+                          <p className="text-xs text-slate-200 leading-relaxed bg-slate-950 p-3 rounded border border-slate-800">
+                            {report.description}
+                          </p>
+                        )}
                       </div>
 
                       <div className="space-y-1.5">
                         <h4 className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">Tindakan Perbaikan Korektif (Corrective Action)</h4>
-                        <p className="text-xs text-emerald-300 leading-relaxed bg-slate-950 p-3 rounded border border-slate-800">
-                          {report.recommendedAction}
-                        </p>
+                        {editingId === report.id ? (
+                          <textarea
+                            value={editFormData.recommendedAction || ''}
+                            onChange={(e) => setEditFormData({ ...editFormData, recommendedAction: e.target.value })}
+                            className="w-full text-xs text-emerald-300 leading-relaxed bg-slate-950 p-3 rounded border border-sky-500/50 focus:outline-none focus:ring-1 focus:ring-sky-500 resize-none min-h-[80px]"
+                          />
+                        ) : (
+                          <p className="text-xs text-emerald-300 leading-relaxed bg-slate-950 p-3 rounded border border-slate-800">
+                            {report.recommendedAction}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -287,23 +307,69 @@ export default function ReportList({ reports, loading, onStatusUpdate }: ReportL
                       </span>
                       
                       <div className="flex gap-2">
-                        {report.status === 'Open' && (
-                          <button
-                            onClick={() => onStatusUpdate(report.id, 'In Progress')}
-                            className="rounded bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer"
-                          >
-                            Mulai Tangani (Mark In Progress)
-                          </button>
+                        {editingId === report.id ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                if (onEdit) {
+                                  onEdit(report.id, editFormData);
+                                  setEditingId(null);
+                                }
+                              }}
+                              className="rounded bg-sky-600 hover:bg-sky-700 text-white font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                            >
+                              <Save className="h-3.5 w-3.5" /> SIMPAN
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" /> BATAL
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {onEdit && (
+                              <button
+                                onClick={() => {
+                                  setEditingId(report.id);
+                                  setEditFormData({
+                                    description: report.description,
+                                    recommendedAction: report.recommendedAction
+                                  });
+                                }}
+                                className="rounded bg-slate-800 hover:bg-sky-900/50 hover:text-sky-400 text-slate-400 border border-slate-700 hover:border-sky-500/50 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                              >
+                                <Pencil className="h-3.5 w-3.5" /> EDIT
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button
+                                onClick={() => onDelete(report.id)}
+                                className="rounded bg-slate-800 hover:bg-rose-900/50 hover:text-rose-400 text-slate-400 border border-slate-700 hover:border-rose-500/50 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer flex items-center gap-1.5 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> HAPUS
+                              </button>
+                            )}
+                            {report.status === 'Open' && (
+                              <button
+                                onClick={() => onStatusUpdate(report.id, 'In Progress')}
+                                className="rounded bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer"
+                              >
+                                Mulai Tangani (Mark In Progress)
+                              </button>
+                            )}
+                            {(report.status === 'Open' || report.status === 'In Progress') && (
+                              <button
+                                onClick={() => onStatusUpdate(report.id, 'Closed')}
+                                className="rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer"
+                              >
+                                Selesaikan (Mark Closed)
+                              </button>
+                            )}
+                          </>
                         )}
-                        {(report.status === 'Open' || report.status === 'In Progress') && (
-                          <button
-                            onClick={() => onStatusUpdate(report.id, 'Closed')}
-                            className="rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-3.5 py-1.5 uppercase tracking-wider cursor-pointer"
-                          >
-                            Selesaikan (Mark Closed)
-                          </button>
-                        )}
-                        {report.status === 'Closed' && (
+                        {report.status === 'Closed' && editingId !== report.id && (
                           <span className="text-[10px] font-bold text-emerald-400 font-mono bg-emerald-950/20 px-3 py-1 rounded border border-emerald-500/20">
                             ✔ TEMUAN TELAH DISELESAIKAN & DIVERIFIKASI
                           </span>

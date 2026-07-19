@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { FileCheck, Save, ClipboardList } from 'lucide-react';
-import { HazardCategory, ReportType, SeverityLevel } from '../types';
+import { FileCheck, Save, ClipboardList, Cloud } from 'lucide-react';
+import { ReportType } from '../types';
 
 interface ReportFormProps {
   onReportCreated: () => void;
+  gToken?: string | null;
 }
 
-export default function ReportForm({ onReportCreated }: ReportFormProps) {
+export default function ReportForm({ onReportCreated, gToken }: ReportFormProps) {
   const [tgl, setTgl] = useState(new Date().toISOString().substring(0, 10));
   const [auditor, setAuditor] = useState('');
   const [jabatan, setJabatan] = useState('');
@@ -19,6 +20,7 @@ export default function ReportForm({ onReportCreated }: ReportFormProps) {
   const [standardUrutan, setStandardUrutan] = useState('');
   const [penyimpangan, setPenyimpangan] = useState('');
   const [followup, setFollowup] = useState('');
+  const [syncToGDrive, setSyncToGDrive] = useState<boolean>(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -51,10 +53,10 @@ ${penyimpangan}`;
         body: JSON.stringify({
           reporterName: auditor,
           location: mesin,
-          type: 'Kondisi Tidak Aman (KTA)' as ReportType,
-          category: 'Mekanikal & Alat Berat' as HazardCategory,
+          type: 'Kondisi Tidak Aman (KTA)' as any,
+          category: 'Mekanikal & Alat Berat' as any,
           description: combinedDescription,
-          severity: 'Sedang' as SeverityLevel,
+          severity: 'Sedang' as any,
           recommendedAction: followup || 'Follow up / Koordinasi berjalan',
           status: 'Open'
         })
@@ -62,6 +64,65 @@ ${penyimpangan}`;
 
       if (!response.ok) {
         throw new Error('Gagal mengirim form');
+      }
+
+      // Automatically back up to Google Drive if connected and checked
+      if (gToken && syncToGDrive) {
+        try {
+          const jsPDF = (await import('jspdf')).default;
+          const { uploadFileToGoogleDrive } = await import('../firebase');
+          
+          const doc = new jsPDF();
+          
+          doc.setFontSize(16);
+          doc.text('Bukti Laporan Kesesuaian IK Mixing', 14, 20);
+          
+          doc.setFontSize(10);
+          doc.text(`Tanggal Laporan: ${tgl}`, 14, 28);
+          doc.text(`Auditor (Sect Head): ${auditor}`, 14, 34);
+          doc.text(`Jabatan: ${jabatan}`, 14, 40);
+          doc.text(`Shift: ${shift}`, 14, 46);
+          doc.text(`Mesin / Lokasi: ${mesin}`, 14, 52);
+          
+          doc.setFontSize(12);
+          doc.text('Detail Auditee & IK:', 14, 62);
+          doc.setFontSize(10);
+          doc.text(`Auditee (NRP/Nama): ${nrp} / ${nama}`, 14, 68);
+          doc.text(`No Instruksi Kerja (IK): ${noIk}`, 14, 74);
+          
+          doc.setFontSize(12);
+          doc.text('Deskripsi Temuan:', 14, 86);
+          doc.setFontSize(10);
+          const splitDeskripsi = doc.splitTextToSize(deskripsi || '-', 180);
+          doc.text(splitDeskripsi, 14, 92);
+          
+          const nextY = 92 + (splitDeskripsi.length * 5) + 10;
+          doc.setFontSize(12);
+          doc.text('Standard Urutan & Penyimpangan:', 14, nextY);
+          doc.setFontSize(10);
+          const splitStd = doc.splitTextToSize(standardUrutan || '-', 180);
+          doc.text('Standard:', 14, nextY + 6);
+          doc.text(splitStd, 14, nextY + 12);
+          
+          const penyimpanganY = nextY + 12 + (splitStd.length * 5) + 6;
+          const splitPenyimpangan = doc.splitTextToSize(penyimpangan || '-', 180);
+          doc.text('Penyimpangan / Upnormal:', 14, penyimpanganY);
+          doc.text(splitPenyimpangan, 14, penyimpanganY + 6);
+          
+          const followUpY = penyimpanganY + 6 + (splitPenyimpangan.length * 5) + 6;
+          const splitFollowUp = doc.splitTextToSize(followup || '-', 180);
+          doc.text('Rekomendasi Tindakan:', 14, followUpY);
+          doc.text(splitFollowUp, 14, followUpY + 6);
+
+          const pdfBlob = doc.output('blob');
+          const cleanName = nama ? nama.replace(/\s+/g, '_') : 'Unidentified';
+          const filename = `Bukti_Laporan_IK_${cleanName}_${new Date().toISOString().slice(0, 10)}.pdf`;
+          
+          await uploadFileToGoogleDrive(filename, 'application/pdf', pdfBlob, gToken);
+          console.log('Successfully saved copy to GDrive:', filename);
+        } catch (gdriveErr) {
+          console.error('Error auto-syncing to GDrive:', gdriveErr);
+        }
       }
       
       // Reset form
@@ -258,6 +319,22 @@ ${penyimpangan}`;
             />
           </div>
         </div>
+
+        {gToken && (
+          <div className="flex items-center gap-2 bg-slate-950/40 border border-slate-800/80 rounded-lg p-3">
+            <input
+              type="checkbox"
+              id="sync-to-gdrive-checkbox"
+              checked={syncToGDrive}
+              onChange={(e) => setSyncToGDrive(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-800 text-amber-500 focus:ring-amber-500 bg-slate-950 cursor-pointer"
+            />
+            <label htmlFor="sync-to-gdrive-checkbox" className="flex items-center gap-1.5 text-xs text-slate-300 font-mono select-none cursor-pointer">
+              <Cloud className="h-4 w-4 text-sky-400" />
+              Simpan salinan PDF laporan langsung ke Google Drive
+            </label>
+          </div>
+        )}
 
         <div className="flex justify-end pt-4 border-t border-slate-800">
           <button

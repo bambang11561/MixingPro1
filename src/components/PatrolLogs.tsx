@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, MapPin, User, Calendar, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, CheckCircle, Download, Trash2 } from 'lucide-react';
+import { FileSpreadsheet, MapPin, User, Calendar, AlertCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, CheckCircle, Download, Trash2, Cloud, ExternalLink } from 'lucide-react';
 import { ReportStatus } from '../types';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,6 +9,10 @@ interface CheckItem {
   category: string;
   title: string;
   description: string;
+}
+
+interface PatrolLogsProps {
+  gToken?: string | null;
 }
 
 const patrolItems: CheckItem[] = [
@@ -39,10 +43,12 @@ const patrolItems: CheckItem[] = [
   { id: 20, category: 'Shitsuke', title: 'Keteladanan dan keterlibatan pimpinan kerja', description: 'Keterlibatan pimpinan (Min Sect. Head) terhadap aktifitas 4K (Genba, clean day). Pimpinan kerja hadir dan terdokumentasi.' }
 ];
 
-export default function PatrolLogs() {
+export default function PatrolLogs({ gToken }: PatrolLogsProps) {
   const [patrols, setPatrols] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [uploadingGdrive, setUploadingGdrive] = useState<boolean>(false);
+  const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
 
   const [areaFilter, setAreaFilter] = useState<string>('ALL');
 
@@ -198,6 +204,68 @@ export default function PatrolLogs() {
     doc.save('Laporan_Temuan_Patrol.pdf');
   };
 
+  const handleUploadToGDrive = async () => {
+    if (!gToken) {
+      alert('Hubungkan Google Drive terlebih dahulu melalui Sidebar.');
+      return;
+    }
+    setUploadingGdrive(true);
+    setGdriveFileUrl(null);
+    try {
+      const { uploadFileToGoogleDrive } = await import('../firebase');
+      const doc = new jsPDF();
+      
+      doc.setFontSize(16);
+      doc.text('Laporan Temuan Patroli 4K+S', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 28);
+      
+      const tableData: any[] = [];
+      filteredPatrols.forEach((patrol, index) => {
+        const ngItems = getNgItems(patrol.itemsStatus);
+        ngItems.forEach((item, itemIndex) => {
+          const remark = patrol.itemsRemarks?.[item.id] || '-';
+          const workingStatus = patrol.itemsWorkingStatus?.[item.id] || 'Open';
+          
+          tableData.push([
+            itemIndex === 0 ? index + 1 : '',
+            itemIndex === 0 ? new Date(patrol.date).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '',
+            itemIndex === 0 ? patrol.area : '',
+            itemIndex === 0 ? patrol.teknisi : '',
+            item.title,
+            remark,
+            workingStatus
+          ]);
+        });
+      });
+
+      autoTable(doc, {
+        startY: 35,
+        head: [['No', 'Waktu', 'Area', 'Teknisi', 'Temuan', 'Keterangan', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [14, 165, 233] } // sky-500
+      });
+
+      const pdfBlob = doc.output('blob');
+      const filename = `Laporan_Temuan_Patrol_${new Date().toISOString().slice(0, 10)}.pdf`;
+      
+      const fileData = await uploadFileToGoogleDrive(filename, 'application/pdf', pdfBlob, gToken);
+      if (fileData && fileData.id) {
+        setGdriveFileUrl(`https://drive.google.com/file/d/${fileData.id}/view`);
+      } else {
+        alert('Gagal mengupload file ke Google Drive.');
+      }
+    } catch (error: any) {
+      console.error('Error saving patrol log to GDrive:', error);
+      alert('Gagal mengupload: ' + error.message);
+    } finally {
+      setUploadingGdrive(false);
+    }
+  };
+
   return (
     <div className="rounded-xl bg-slate-900 border border-slate-800 p-6 shadow-lg space-y-6" id="patrol-logs-container">
       {/* Title & Filter bar */}
@@ -215,11 +283,32 @@ export default function PatrolLogs() {
           <button
             onClick={handleDownloadPDF}
             disabled={filteredPatrols.length === 0}
-            className="flex items-center gap-1 rounded bg-sky-600/20 text-sky-400 hover:bg-sky-600/30 border border-sky-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 rounded bg-sky-600/20 text-sky-400 hover:bg-sky-600/30 border border-sky-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
             UNDUH LAPORAN
           </button>
+          {gToken && (
+            <button
+              onClick={handleUploadToGDrive}
+              disabled={filteredPatrols.length === 0 || uploadingGdrive}
+              className="flex items-center gap-1 rounded bg-sky-600/20 text-sky-400 hover:bg-sky-600/30 border border-sky-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              {uploadingGdrive ? 'MENYIMPAN...' : 'SIMPAN KE G-DRIVE'}
+            </button>
+          )}
+          {gdriveFileUrl && (
+            <a
+              href={gdriveFileUrl}
+              target="_blank"
+              referrerPolicy="no-referrer"
+              className="flex items-center gap-1 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 text-[11px] font-bold px-3 py-1 transition-colors cursor-pointer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              BUKA DI G-DRIVE
+            </a>
+          )}
           <select
             value={areaFilter}
             onChange={(e) => setAreaFilter(e.target.value)}

@@ -12,8 +12,51 @@ import MappingArea from './components/MappingArea';
 import Login from './components/Login';
 import { DashboardStats, SafetyReport, ReportStatus } from './types';
 import { Eye, ShieldAlert, FileSpreadsheet, MessageSquareCode } from 'lucide-react';
+import { initAuth, googleSignIn, logoutGoogle } from './firebase';
 
 export default function App() {
+  // Google Drive Integration State
+  const [gUser, setGUser] = useState<any>(null);
+  const [gToken, setGToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setGUser(user);
+        setGToken(token);
+      },
+      () => {
+        setGUser(null);
+        setGToken(null);
+      }
+    );
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const res = await googleSignIn();
+      if (res) {
+        setGUser(res.user);
+        setGToken(res.accessToken);
+      }
+    } catch (err) {
+      console.error('Google Sign In Error:', err);
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    try {
+      await logoutGoogle();
+      setGUser(null);
+      setGToken(null);
+    } catch (err) {
+      console.error('Google Sign Out Error:', err);
+    }
+  };
+
   const [stats, setStats] = useState<DashboardStats>({
     safeManHours: 2345680,
     daysWithoutAccident: 191,
@@ -214,6 +257,10 @@ export default function App() {
         role={userRole}
         onLogout={handleLogout}
         username={username}
+        gUser={gUser}
+        gToken={gToken}
+        onGoogleSignIn={handleGoogleSignIn}
+        onGoogleSignOut={handleGoogleSignOut}
       />
 
       {/* Main Console Container */}
@@ -246,6 +293,7 @@ export default function App() {
                     onStatusUpdate={handleStatusUpdate}
                     onDelete={handleDeleteReport}
                     onEdit={handleEditReport}
+                    gToken={gToken}
                   />
                 </div>
               </div>
@@ -260,6 +308,7 @@ export default function App() {
                 onStatusUpdate={handleStatusUpdate}
                 onDelete={handleDeleteReport}
                 onEdit={handleEditReport}
+                gToken={gToken}
               />
             </div>
           )}
@@ -268,6 +317,7 @@ export default function App() {
             <div className="max-w-3xl mx-auto animate-fade-in">
               <ReportForm
                 onReportCreated={handleNewReportCreated}
+                gToken={gToken}
               />
             </div>
           )}
@@ -280,7 +330,7 @@ export default function App() {
 
           {activePage === 'patrol_logs' && userRole === 'admin' && (
             <div className="animate-fade-in">
-              <PatrolLogs />
+              <PatrolLogs gToken={gToken} />
             </div>
           )}
 

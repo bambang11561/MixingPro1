@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SafetyReport, ReportStatus, ReportType } from '../types';
-import { ShieldAlert, AlertCircle, CheckCircle, Clock, MapPin, User, Tag, ChevronDown, ChevronUp, BrainCircuit, Download, Trash2, Pencil, Save, X } from 'lucide-react';
+import { ShieldAlert, AlertCircle, CheckCircle, Clock, MapPin, User, Tag, ChevronDown, ChevronUp, BrainCircuit, Download, Trash2, Pencil, Save, X, Cloud, ExternalLink } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -10,12 +10,15 @@ interface ReportListProps {
   onStatusUpdate: (id: string, newStatus: ReportStatus) => void;
   onDelete?: (id: string) => void;
   onEdit?: (id: string, updatedData: Partial<SafetyReport>) => void;
+  gToken?: string | null;
 }
 
-export default function ReportList({ reports, loading, onStatusUpdate, onDelete, onEdit }: ReportListProps) {
+export default function ReportList({ reports, loading, onStatusUpdate, onDelete, onEdit, gToken }: ReportListProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<SafetyReport>>({});
+  const [uploadingGdrive, setUploadingGdrive] = useState<boolean>(false);
+  const [gdriveFileUrl, setGdriveFileUrl] = useState<string | null>(null);
   
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -57,6 +60,63 @@ export default function ReportList({ reports, loading, onStatusUpdate, onDelete,
     });
 
     doc.save('Laporan_Ketidaksesuaian_IK.pdf');
+  };
+
+  const handleUploadToGDrive = async () => {
+    if (!gToken) {
+      alert('Hubungkan Google Drive terlebih dahulu melalui Sidebar.');
+      return;
+    }
+    setUploadingGdrive(true);
+    setGdriveFileUrl(null);
+    try {
+      const { uploadFileToGoogleDrive } = await import('../firebase');
+      const doc = new jsPDF();
+      
+      doc.setFontSize(16);
+      doc.text('Laporan Ketidaksesuaian IK', 14, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 28);
+      
+      const tableData = filteredReports.map((report, index) => {
+        const auditeeMatch = report.description.match(/Auditee \(NRP\/Nama\):\s*(.*?)\s*\//);
+        const auditee = auditeeMatch ? auditeeMatch[1] : report.category;
+        
+        return [
+          index + 1,
+          new Date(report.timestamp).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+          report.location,
+          report.reporterName,
+          auditee,
+          report.status
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 35,
+        head: [['No', 'Waktu', 'Lokasi', 'Pelapor', 'Auditee/Kategori', 'Status']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [249, 115, 22] } // orange-500
+      });
+
+      const pdfBlob = doc.output('blob');
+      const filename = `Laporan_Ketidaksesuaian_IK_${new Date().toISOString().slice(0, 10)}.pdf`;
+      
+      const fileData = await uploadFileToGoogleDrive(filename, 'application/pdf', pdfBlob, gToken);
+      if (fileData && fileData.id) {
+        setGdriveFileUrl(`https://drive.google.com/file/d/${fileData.id}/view`);
+      } else {
+        alert('Gagal mengupload file ke Google Drive.');
+      }
+    } catch (error: any) {
+      console.error('Error saving to GDrive:', error);
+      alert('Gagal mengupload: ' + error.message);
+    } finally {
+      setUploadingGdrive(false);
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -126,11 +186,32 @@ export default function ReportList({ reports, loading, onStatusUpdate, onDelete,
           <button
             onClick={handleDownloadPDF}
             disabled={filteredReports.length === 0}
-            className="flex items-center gap-1 rounded bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 border border-orange-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 rounded bg-orange-600/20 text-orange-400 hover:bg-orange-600/30 border border-orange-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
             UNDUH LAPORAN
           </button>
+          {gToken && (
+            <button
+              onClick={handleUploadToGDrive}
+              disabled={filteredReports.length === 0 || uploadingGdrive}
+              className="flex items-center gap-1 rounded bg-sky-600/20 text-sky-400 hover:bg-sky-600/30 border border-sky-500/30 text-[11px] font-bold px-3 py-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              {uploadingGdrive ? 'MENYIMPAN...' : 'SIMPAN KE G-DRIVE'}
+            </button>
+          )}
+          {gdriveFileUrl && (
+            <a
+              href={gdriveFileUrl}
+              target="_blank"
+              referrerPolicy="no-referrer"
+              className="flex items-center gap-1 rounded bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 text-[11px] font-bold px-3 py-1 transition-colors cursor-pointer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              BUKA DI G-DRIVE
+            </a>
+          )}
           {/* Status Filter */}
           <select
             value={statusFilter}

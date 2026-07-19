@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   ShieldAlert as ShieldIcon,
-  LogOut
+  LogOut,
+  Cloud
 } from 'lucide-react';
 
 export type ActivePageType = 
@@ -33,9 +34,25 @@ interface SidebarProps {
   role?: 'admin' | 'user';
   onLogout?: () => void;
   username?: string;
+  gUser?: any;
+  gToken?: string | null;
+  onGoogleSignIn?: () => void;
+  onGoogleSignOut?: () => void;
 }
 
-export default function Sidebar({ activePage, onPageChange, isOpen, onToggle, role = 'admin', onLogout, username }: SidebarProps) {
+export default function Sidebar({ 
+  activePage, 
+  onPageChange, 
+  isOpen, 
+  onToggle, 
+  role = 'admin', 
+  onLogout, 
+  username,
+  gUser,
+  gToken,
+  onGoogleSignIn,
+  onGoogleSignOut
+}: SidebarProps) {
   const allMenuItems = [
     {
       id: 'dashboard' as ActivePageType,
@@ -214,6 +231,51 @@ export default function Sidebar({ activePage, onPageChange, isOpen, onToggle, ro
             );
           })}
         </nav>
+
+        {/* Google Drive Storage Sync Section */}
+        <div className="border-t border-slate-800 bg-[#060a14]/60 p-4 shrink-0 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Cloud className="h-4 w-4 text-sky-400" />
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">Penyimpanan G-Drive</span>
+            </div>
+            {gToken ? (
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" title="Terhubung"></span>
+              </span>
+            ) : (
+              <span className="h-2 w-2 rounded-full bg-slate-600" title="Belum Terhubung"></span>
+            )}
+          </div>
+
+          {gToken ? (
+            <div className="space-y-2">
+              <div className="bg-emerald-950/20 border border-emerald-500/20 rounded p-2 text-[10px] font-mono text-emerald-400 leading-snug">
+                <div className="font-bold uppercase tracking-wide text-[9px]">Google Drive Aktif</div>
+                <div className="text-slate-400 mt-0.5 truncate text-[8px]">{gUser?.email}</div>
+              </div>
+              <button
+                onClick={onGoogleSignOut}
+                className="w-full rounded bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-slate-200 font-bold text-[8px] py-1.5 uppercase tracking-wider cursor-pointer text-center transition-colors font-mono"
+              >
+                Putuskan GDrive
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-[8px] text-slate-500 leading-relaxed">
+                Hubungkan akun Google untuk menyimpan arsip PDF laporan langsung ke Google Drive.
+              </p>
+              <button
+                onClick={onGoogleSignIn}
+                className="w-full rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-[8px] py-1.5 uppercase tracking-widest cursor-pointer text-center flex items-center justify-center gap-1 transition-colors font-mono shadow-md"
+              >
+                <Cloud className="h-3 w-3" /> HUBUNGKAN GDRIVE
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Safety Quote/Slogan Footer */}
         <div className="border-t border-slate-800 bg-[#060a14] p-4 text-center shrink-0">
